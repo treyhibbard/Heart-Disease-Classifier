@@ -1,0 +1,588 @@
+---
+title: "CD_Analysis"
+output: html_document
+date: "2025-11-24"
+---
+
+# Loading in the dataset
+```{r}
+CD_table<- read.csv(
+  file = "~/Downloads/MASTERS FILES/6236/Project/Cardiovascular_Disease_Dataset.csv", 
+  sep = ",")
+```
+
+# Reorganizing / Cleaning dataset 
+```{r}
+CD_table <- CD_table[, c(
+  "target", #target
+  "restingBP", "serumcholestrol", "maxheartrate", "oldpeak", "age", # ratio/interval
+  "chestpain", "restingrelectro", "slope", "noofmajorvessels", #ordinal
+  "gender", "fastingbloodsugar", "exerciseangia" #binary
+  )]
+
+library(dplyr)
+CD_table <- CD_table %>% mutate(
+  target = factor(target,
+                  levels=c(0,1),
+                  labels=c("Heart Disease = FALSE", "Heart Disease = TRUE")),
+  chestpain = factor(chestpain,
+                      levels=c(0,1,2,3),
+                      labels=c(" typical angina"," atypical angina"," non-anginal pain", " asymptomatic")),
+  restingrelectro = factor(restingrelectro,
+                            levels=c(0,1,2),
+                            labels=c(" normal", " ST-T wave abnormality", " left ventricular hypertrophy")),
+  slope = ordered(slope,
+                  levels=c(0,1,2,3), #180 unknown slopes
+                  labels=c(" unknown", " upsloping", " flat", " downsloping")),
+  noofmajorvessels = ordered(noofmajorvessels),
+  gender = factor(gender,
+                  levels=c(0,1),
+                  labels=c("female", "male")),
+  fastingbloodsugar = factor(fastingbloodsugar,
+                             levels=c(0,1),
+                             labels=c("< 120mg/dl", "> 120mg/dl")),
+  exerciseangia = factor(exerciseangia,
+                         levels=c(0,1),
+                         labels=c("no", "yes"))
+)
+
+target <- CD_table %>% select(
+  target
+)
+numeric <- CD_table %>% select(
+  restingBP, serumcholestrol, maxheartrate, oldpeak, age
+)
+ordinal <- CD_table %>% select(
+  chestpain, restingrelectro, slope, noofmajorvessels
+)
+binary <- CD_table %>% select(
+  gender, fastingbloodsugar, exerciseangia
+)
+```
+
+# Exploratory Data Analysis
+```{r}
+colSums(is.na(CD_table))
+str(CD_table)
+summary(CD_table)
+```
+
+
+Plots for Analysis (target + numerics)
+```{r}
+ggplot(data = CD_table, aes(x = target)) +
+  geom_bar(fill = "steelblue2") +
+  geom_text(
+    stat = "count",
+    aes(label = ..count..),
+    vjust = 0,      # move label above bar
+    size = 5
+  ) +
+  labs(
+    title = "Distribution of Heart Disease",
+    x = "Heart Disease Status",
+    y = "Count"
+  )
+
+
+ggplot(data = CD_table, aes(x = age, fill = target)) +
+  geom_histogram(position = "dodge", bins = 10) +
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )
+  labs(
+    title = "Age Distribution by Heart Disease Status",
+    x = "Age",
+    y = "Count"
+  )
+
+ggplot(data = CD_table, aes(x = target, y = age)) +
+  geom_boxplot(fill = "steelblue2") +
+  labs(
+    title = "Age by Heart Disease Status (Boxplot)",
+    x = "Heart Disease Status",
+    y = "Age"
+  )
+
+ggplot(data = CD_table, aes(x = target, y = restingBP)) +
+  geom_boxplot(fill = "steelblue2") +
+  labs(
+    title = "Resting Blood Pressure by Heart Disease Status (Boxplot)",
+    x = "Heart Disease Status",
+    y = "Resting Blood Pressure (mmHg)"
+  )
+
+ggplot(data = CD_table, aes(x = target, y = serumcholestrol)) +
+  geom_boxplot(fill = "steelblue2") +
+  labs(
+    title = "Serum Cholestrol by Heart Disease Status (Boxplot)",
+    x = "Heart Disease Status",
+    y = "Serum Cholestrol"
+  )
+
+ggplot(data = CD_table, aes(x = target, y = maxheartrate)) +
+  geom_boxplot(fill = "steelblue2") +
+  labs(
+    title = "Max Heart Rate by Heart Disease Status (Boxplot)",
+    x = "Heart Disease Status",
+    y = "Max Heart Rate"
+  )
+
+ggplot(data = CD_table, aes(x = target, y = oldpeak)) +
+  geom_boxplot(fill = "steelblue2") +
+  labs(
+    title = "Oldpeak by Heart Disease Status (Boxplot)",
+    x = "Heart Disease Status",
+    y = "Oldpeak"
+  )
+
+# Very small correlation between any 2 numeric
+num_vars <- CD_table[, c("age", "restingBP", "serumcholestrol", "maxheartrate", "oldpeak")]
+corr_matrix <- cor(num_vars)
+corrplot::corrplot(corr_matrix, method = "number")
+
+numeric_vars <- c("age", "restingBP", "serumcholestrol", "maxheartrate", "oldpeak")
+
+plot(CD_table[, numeric_vars])
+
+
+```
+
+Ordinal Analysis Plots
+```{r}
+ggplot(
+  data = CD_table, 
+  aes(x = chestpain, fill = target)) +
+  geom_bar(position = "fill") + 
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Chest Pain Type vs Heart Disease (Proportion)",
+    x = "Chest Pain Type",
+    y = "Proportion"
+  )
+
+ggplot(
+  data = CD_table, 
+  aes(x = restingrelectro, fill = target)) +
+  geom_bar(position = "fill") + 
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Resting Electro vs Heart Disease (Proportion)",
+    x = "Resting Electro",
+    y = "Proportion"
+  )
+
+ggplot(
+  data = CD_table, 
+  aes(x = slope, fill = target)) +
+  geom_bar(position = "fill") + 
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Slope vs Heart Disease (Proportion)",
+    x = "Slope",
+    y = "Proportion"
+  )
+
+ggplot(
+  data = CD_table, 
+  aes(x = noofmajorvessels, fill = target)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Noof Major Vessels vs Heart Disease (Proportion)",
+    x = "Noof Major Vessels",
+    y = "Proportion"
+  )
+
+```
+
+Binary Analysis Plots
+```{r}
+ggplot(
+  data = CD_table, 
+  aes(x = gender, fill = target)) +
+  geom_bar(position = "fill") + 
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Gender vs Heart Disease (Proportion)",
+    x = "Gender",
+    y = "Proportion"
+  )
+
+ggplot(
+  data = CD_table, 
+  aes(x = fastingbloodsugar, fill = target)) +
+  geom_bar(position = "fill") + 
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Fasting Blood Sugar vs Heart Disease (Proportion)",
+    x = "Fasting Blood Sugar",
+    y = "Proportion"
+  )
+
+ggplot(
+  data = CD_table, 
+  aes(x = exerciseangia, fill = target)) +
+  geom_bar(position = "fill") + 
+  scale_fill_manual(
+    values = c(
+      "Heart Disease = FALSE" = "steelblue2",
+      "Heart Disease = TRUE"  = "indianred1"
+    )
+  )+
+  labs(
+    title = "Exercise Angia vs Heart Disease (Proportion)",
+    x = "Exercise Angia",
+    y = "Proportion"
+  )
+
+```
+
+
+
+
+
+
+# Train/Test Split
+```{r}
+set.seed(100)  # reproducible
+
+train_indices <- createDataPartition(CD_table$target, p = 0.8, list = FALSE)
+
+train <- CD_table[train_indices, ]
+test  <- CD_table[-train_indices, ]
+```
+
+Full Model Analysis
+
+# Logistic Regression
+
+Initial Stepwise selection
+```{r}
+log_reg_train <- glm(
+  target ~ ., 
+  family = "binomial",
+  data = train
+)
+
+log_reg_null <- glm(target ~ 1, family = "binomial", data = train)
+
+# Stepwise forward
+log_reg_step <- step(
+  log_reg_null,
+  scope = list(lower = log_reg_null, upper = log_reg_train),
+  direction = "forward",
+  trace = 0 # Remove if you want to see the process
+)
+
+log_reg_model_list <- list()
+log_reg_model_list[["log_reg_step"]] <- log_reg_step
+
+summary(log_reg_step)
+
+prob <- predict(log_reg_step, newdata = test, type = "response")
+pred <- ifelse(prob > 0.5, "Heart Disease = TRUE", "Heart Disease = FALSE")
+# Suppose pred contains predicted labels, and test$target contains true labels
+conf_mat <- table(Predicted = pred, Actual = test$target)
+conf_mat
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+paste("accuracy", accuracy)
+
+#ggplot confusion matrix
+pred <- factor(pred, levels = levels(test$target))
+# caret
+conf_mat_caret <- confusionMatrix(pred, test$target)
+conf_mat_caret
+
+cm_df <- as.data.frame(conf_mat_caret$table)
+colnames(cm_df) <- c("Predicted", "Actual", "Count")
+
+ggplot(cm_df, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile(color = "black") +
+  geom_text(aes(label = Count), size = 6) +
+  scale_fill_gradient(low = "white", high = "steelblue2") +
+  labs(
+    title = "Confusion Matrix - Stepwise Logistic Regression Model",
+    x = "Predicted Label",
+    y = "Actual Label"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title = element_text(size = 14)
+  )
+
+formula(log_reg_step)
+
+```
+
+
+Cutting down further
+```{r}
+step_formula <- formula(log_reg_step)
+step_formula
+
+log_reg_cut <- update(log_reg_step, . ~ . - chestpain - fastingbloodsugar - restingrelectro - maxheartrate)
+summary(log_reg_1) # the p-values for slope are close to 1 but removing them destroys the accuracy.
+# The slope dummy variables are probably competing with eachother for variable importance
+
+prob <- predict(log_reg_cut, newdata = test, type = "response") # run test data
+pred <- ifelse(prob > 0.5, "Heart Disease = TRUE", "Heart Disease = FALSE")
+
+# Confusion Matrix
+conf_mat <- table(Predicted = pred, Actual = test$target)
+conf_mat
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+paste("accuracy", accuracy)
+
+#ggplot confusion matrix
+pred <- factor(pred, levels = levels(test$target))
+# caret
+conf_mat_caret <- confusionMatrix(pred, test$target)
+conf_mat_caret
+
+cm_df <- as.data.frame(conf_mat_caret$table)
+colnames(cm_df) <- c("Predicted", "Actual", "Count")
+
+ggplot(cm_df, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile(color = "black") +
+  geom_text(aes(label = Count), size = 6) +
+  scale_fill_gradient(low = "white", high = "steelblue2") +
+  labs(
+    title = "Confusion Matrix - Simplified Logistic Regression Model",
+    x = "Predicted Label",
+    y = "Actual Label"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title = element_text(size = 14)
+  )
+```
+I wouldn't consider cutting anything else.
+
+
+Basic Decision Tree
+```{r}
+library(rpart)
+library(rpart.plot)
+tree_model <- rpart(
+  target ~ ., 
+  data = CD_table, 
+)
+
+rpart.plot(
+  tree_model
+  )
+```
+
+
+
+Random Forest Check
+```{r}
+library(randomForest)
+set.seed(100)
+rf_model <- randomForest(
+  target ~ ., 
+  data = train,
+  ntree = 500,
+  importance = TRUE   # compute variable importance
+)
+rf_pred <- predict(rf_model, newdata = test)
+table(True = test$target, Predicted = rf_pred)
+paste("accuracy", mean(rf_pred == test$target))
+
+varImpPlot(rf_model,
+           main = "Variable Importance (Random Forest)")
+
+library(dplyr)
+library(ggplot2)
+
+importance_df <- as.data.frame(rf_model$importance) %>%
+  mutate(Variable = rownames(rf_model$importance))
+
+ggplot(importance_df,
+       aes(x = reorder(Variable, MeanDecreaseAccuracy),
+           y = MeanDecreaseAccuracy)) +
+  geom_col(fill = "steelblue2") +
+  coord_flip() +
+  labs(
+    title = "Random Forest Variable Importance (Mean Decrease Accuracy)",
+    x = "Variable",
+    y = "Mean Decrease Accuracy"
+  )
+
+```
+
+
+
+
+
+
+
+
+
+# At home Analysis
+All 3 again except only considering the variables which could be tested at home.
+```{r}
+home_variables <- c("target", "age", "gender", "restingBP", "chestpain", "exerciseangia")
+set.seed(100)
+
+# Select only home-measurable predictors + target
+train_home <- train[, home_variables]
+test_home  <- test[, home_variables]
+```
+
+
+Regression model
+```{r}
+log_reg_train_home <- glm(
+  target ~ ., 
+  family = "binomial",
+  data = train_home
+)
+
+log_reg_null_home <- glm(target ~ 1, family = "binomial", data = train_home)
+
+# Stepwise forward
+log_reg_step_home <- step(
+  log_reg_null_home,
+  scope = list(lower = log_reg_null_home, upper = log_reg_train_home),
+  direction = "forward",
+  trace = 0 # Remove if you want to see the process
+)
+summary(log_reg_step_home)
+
+prob <- predict(log_reg_step_home, newdata = test, type = "response")
+pred <- ifelse(prob > 0.5, "Heart Disease = TRUE", "Heart Disease = FALSE")
+# Suppose pred contains predicted labels, and test$target contains true labels
+conf_mat <- table(Predicted = pred, Actual = test$target)
+conf_mat
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+paste("accuracy", accuracy)
+
+#ggplot confusion matrix
+pred <- factor(pred, levels = levels(test$target))
+# caret
+conf_mat_caret <- confusionMatrix(pred, test$target)
+conf_mat_caret
+
+cm_df <- as.data.frame(conf_mat_caret$table)
+colnames(cm_df) <- c("Predicted", "Actual", "Count")
+
+ggplot(cm_df, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile(color = "black") +
+  geom_text(aes(label = Count), size = 6) +
+  scale_fill_gradient(low = "white", high = "steelblue2") +
+  labs(
+    title = "Confusion Matrix (At Home) Stepwise Log-Reg Model",
+    x = "Predicted Label",
+    y = "Actual Label"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.title = element_text(size = 14)
+  )
+formula(log_reg_step_home)
+drop1(log_reg_step_home, test = "LRT")
+
+
+```
+
+
+
+Basic Decision Tree
+```{r}
+library(rpart)
+library(rpart.plot)
+tree_model_home <- rpart(
+  target ~ ., 
+  data = train_home, 
+  control = rpart.control(maxdepth = 3)
+)
+
+rpart.plot(
+  tree_model_home,
+  )
+```
+
+
+Random Forest
+```{r}
+library(randomForest)
+
+# Fit random forest
+rf_model_home <- randomForest(
+  target ~ ., 
+  data = train_home,
+  ntree = 500,
+  importance = TRUE   # compute variable importance
+)
+
+# Predict on test set
+rf_pred_home <- predict(rf_model_home, newdata = test_home)
+
+# Confusion matrix
+table(True = test_home$target, Predicted = rf_pred_home)
+
+# Accuracy
+paste("accuracy", mean(rf_pred_home == test_home$target))
+
+varImpPlot(rf_model,
+           main = "Variable Importance (Random Forest)")
+
+
+importance_df <- as.data.frame(rf_model_home$importance) %>%
+  mutate(Variable = rownames(rf_model_home$importance))
+
+ggplot(importance_df,
+       aes(x = reorder(Variable, MeanDecreaseAccuracy),
+           y = MeanDecreaseAccuracy)) +
+  geom_col(fill = "steelblue2") +
+  coord_flip() +
+  labs(
+    title = "Random Forest (Home) Variable Importance (Mean Decrease Accuracy)",
+    x = "Variable",
+    y = "Mean Decrease Accuracy"
+  )
+
+```
+
+
+
+
+
